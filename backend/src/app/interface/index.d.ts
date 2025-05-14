@@ -1,8 +1,9 @@
-export type TErrorSources = {
-  message: string;
-}[];
+import { JwtPayload } from 'jsonwebtoken';
 
-export type TGenericErrorResponse = {
-  statusCode: number;
-  message: string;
-};
+declare global {
+  namespace Express {
+    interface Request {
+      user: JwtPayload;
+    }
+  }
+}
