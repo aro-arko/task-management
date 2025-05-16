@@ -23,6 +23,10 @@ const userSchema = new Schema<TUser>(
       enum: ['admin', 'user'],
       default: 'user',
     },
+    points: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true },
 );

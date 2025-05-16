@@ -6,6 +6,7 @@ export type TUser = {
   email: string;
   password: string;
   role: 'admin' | 'user';
+  points: number;
   createdAt?: Date;
   updatedAt?: Date;
 };
