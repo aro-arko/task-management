@@ -1,52 +1,60 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import config from '../config';
-import httpStatus from 'http-status';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import { ZodError } from 'zod';
+import { ErrorRequestHandler } from 'express';
+import handleZodError from '../errors/handleZodError';
+import handleValidationError from '../errors/handleValidationError';
+import handleDuplicateError from '../errors/handleDuplicateError';
+import handleTokenError from '../errors/handleTokenError';
+import handleCastError from '../errors/handleCastError';
 import AppError from '../errors/AppError';
-import { TUserRole } from '../modules/User/user.interface';
-import catchAsync from '../utils/catchAsync';
-import User from '../modules/User/user.model';
+import config from '../config';
 
-// Authorization middleware to check user roles
-const auth = (...requiredRoles: TUserRole[]) => {
-  return catchAsync(async (req, res, next) => {
-    // Retrieve token from headers
-    const authHeader = req.headers.authorization;
+const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
+  let statusCode = 500;
+  let message = 'Something went wrong';
 
-    if (!authHeader) {
-      throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized!!');
-    }
+  //   handle validation errors
+  if (error instanceof ZodError) {
+    const simplifiedError = handleZodError(error);
+    message = simplifiedError?.message;
+  } else if (error?.name === 'ValidationError') {
+    const simplifiedError = handleValidationError(error);
+    statusCode = simplifiedError?.statusCode;
+    message = simplifiedError?.message;
+  } else if (error?.code === 11000) {
+    const simplifiedError = handleDuplicateError(error);
+    statusCode = simplifiedError?.statusCode;
+    message = simplifiedError?.message;
+  } else if (
+    error.name === 'TokenExpiredError' ||
+    error.name === 'JsonWebTokenError'
+  ) {
+    const simplifiedError = handleTokenError(error);
+    statusCode = simplifiedError?.statusCode;
+    message = simplifiedError?.message;
+  } else if (error?.name === 'CastError') {
+    const simplifiedError = handleCastError(error);
+    statusCode = simplifiedError?.statusCode;
+    message = simplifiedError?.message;
+  } else if (error instanceof AppError) {
+    statusCode = error?.statusCode;
+    message = error?.message;
+  } else if (error instanceof Error) {
+    message = error.message;
+  }
 
-    const token = authHeader;
-
-    try {
-      // Verify the token and decode it
-      const decoded = jwt.verify(
-        token,
-        config.jwt_access_secret as string,
-      ) as JwtPayload;
-      const { email, role } = decoded;
-
-      // Check if user exists
-      const user = await User.findOne({ email: email });
-      if (!user) {
-        throw new AppError(httpStatus.NOT_FOUND, 'This user is not found!');
-      }
-
-      // Check if the user's role is authorized
-      if (requiredRoles.length && !requiredRoles.includes(role)) {
-        throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized!');
-      }
-
-      // Attach user information to the request object
-      req.user = decoded;
-
-      next();
-    } catch (error: any) {
-      throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid or expired token!');
-    }
+  res.status(statusCode).json({
+    success: false,
+    message,
+    statusCode,
+    error: {
+      details: error,
+    },
+    stack: config.node_env === 'development' ? error?.stack : null,
   });
+
+  return;
 };
 
-export default auth;
+export default globalErrorHandler;

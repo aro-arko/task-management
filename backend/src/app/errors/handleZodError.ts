@@ -1,16 +1,15 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import mongoose from 'mongoose';
+import { ZodError } from 'zod';
 import { TGenericErrorResponse } from '../interface/error';
 
-const handleValidationError = (
-  err: mongoose.Error.ValidationError,
-): TGenericErrorResponse => {
+const handleZodError = (err: ZodError): TGenericErrorResponse => {
   const statusCode = 400;
 
   return {
     statusCode,
-    message: 'Validation error',
+    message: 'Zod validation error',
   };
 };
 
-export default handleValidationError;
+export default handleZodError;
