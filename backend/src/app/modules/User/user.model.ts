@@ -1,5 +1,5 @@
 import { model, Schema } from 'mongoose';
-import { TUser } from './user.interface';
+import { TUser, UserModel } from './user.interface';
 import bcrypt from 'bcrypt';
 import config from '../../config';
 
@@ -38,5 +38,12 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-const User = model<TUser>('User', userSchema);
+userSchema.statics.isPasswordMatched = async function (
+  plainTextPassword: string,
+  hashedPassword: string,
+) {
+  return await bcrypt.compare(plainTextPassword, hashedPassword);
+};
+
+const User = model<TUser, UserModel>('User', userSchema);
 export default User;

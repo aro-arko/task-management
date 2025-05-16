@@ -2,6 +2,8 @@ import AppError from '../../errors/AppError';
 import { TUser } from '../User/user.interface';
 import httpStatus from 'http-status';
 import User from '../User/user.model';
+import { createToken } from './auth.utils';
+import config from '../../config';
 
 const createUserIntoDB = async (payLoad: TUser) => {
   const userData = { ...payLoad };
@@ -16,6 +18,33 @@ const createUserIntoDB = async (payLoad: TUser) => {
   return newUser;
 };
 
+const loginUser = async (payLoad: Partial<TUser>) => {
+  const userData = { ...payLoad };
+  const user = await User.findOne({ email: userData.email });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+  if (
+    !(await User.isPasswordMatched(userData.password as string, user.password))
+  ) {
+    throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid password');
+  }
+
+  const jwtPayload = {
+    email: user.email,
+    role: user.role,
+  };
+
+  const accessToken = createToken(
+    jwtPayload,
+    config.jwt_access_secret as string,
+    config.jwt_access_expires_in as string,
+  );
+  return accessToken;
+};
+
 export const authServices = {
   createUserIntoDB,
+  loginUser,
 };
